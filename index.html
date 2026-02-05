@@ -1,0 +1,3027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Memorizer — Apple-Style Calendar</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0a84ff" />
+
+<style>
+  :root{
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #111;
+    --muted: #6e6e73;
+    --blue: #0a84ff;
+    --green:#34c759;
+    --red:#ff3b30;
+    --border:#e5e5ea;
+    --shadow: 0 10px 30px rgba(0,0,0,.06);
+    --radius: 20px;
+    --ring: rgba(10,132,255,.16); /* subtle blue focus ring */
+    --input-bg: var(--card);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#000;
+      --card:#1c1c1e;
+      --text:#fff;
+      --muted:#919197;
+      --border:#2c2c2e;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --ring: rgba(10,132,255,.28);
+      --input-bg: #161618; /* slightly darker than card to avoid “black box” look */
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:24px}
+  .top{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+  h1{font-weight:700;font-size:24px;letter-spacing:-.02em;margin:0}
+  .spacer{flex:1}
+  .pill{appearance:none;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:999px;padding:10px 14px;font-weight:600;cursor:pointer;box-shadow:none;transition:transform .05s ease}
+  .pill:hover{transform:translateY(-1px)}
+  .pill.primary{background:var(--blue);color:#fff;border-color:transparent}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin:14px 0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:820px){.row{grid-template-columns:1fr}}
+  label{font-size:12px;color:var(--muted);display:block;margin:6px 0 4px 12px}
+  /* Inputs — Apple-like */
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="datetime-local"], input[type="date"], input[type="time"],
+  textarea, select{
+    width:100%;
+    background:var(--input-bg);
+    color:var(--text);
+    border:1.5px solid var(--border);
+    border-radius:14px;
+    padding:12px 14px;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    -webkit-appearance:none; appearance:none;
+  }
+  input:focus, textarea:focus, select:focus{
+    border-color:#0a84ff;
+    box-shadow:0 0 0 3px var(--ring);
+  }
+  .toggle{display:inline-flex;align-items:center;gap:8px}
+  .toggle input{appearance:none;width:46px;height:28px;border-radius:999px;background:#c7c7cc;position:relative;outline:none;transition:background .15s}
+  .toggle input:checked{background:var(--blue)}
+  .toggle input::after{content:"";position:absolute;left:2px;top:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .15s}
+  .toggle input:checked::after{transform:translateX(18px)}
+  /* Section header row */
+  .section-header {
+    display: flex;
+    align-items: center;   /* vertically center title + buttons */
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  /* Ensure the title itself aligns properly */
+  .section-title {
+    font-weight: 700;
+    font-size: 17px;
+    margin: 0;
+    line-height: 1;       /* keep it snug */
+  }
+  .list{display:grid;gap:10px}
+  .item{border:1px solid var(--border);border-radius:16px;padding:12px;background:var(--card)}
+  .item .meta{color:var(--muted);font-size:12px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .badge{padding:2px 8px;border-radius:999px;border:1px solid var(--border);font-size:12px;color:var(--muted)}
+  .btn-blue{background:var(--blue);color:#fff;border:0}
+  .btn-green{background:var(--green);color:#000;border:0}
+  .btn-red{background:var(--red);color:#fff;border:0}
+  .hint{color:var(--muted);font-size:12px}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+  .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .divider{height:1px;background:var(--border);margin:10px 0}
+  /* Hamburger */
+.icon-btn{
+  border:1px solid var(--border);
+  background:var(--card);
+  border-radius:14px;
+  width:38px;height:38px;
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:0; cursor:pointer;
+}
+.hamb, .hamb::before, .hamb::after{
+  content:""; display:block; width:18px; height:2px; background:var(--text);
+  border-radius:2px; position:relative;
+}
+.hamb::before{ position:absolute; transform:translateY(-6px); }
+.hamb::after{ position:absolute; transform:translateY(6px); }
+
+/* Flyout menu */
+.menu{
+  position:relative;
+}
+.menu[hidden]{ display:none!important; }
+.menu{
+  position:absolute; right:72px; top:50px; z-index:50;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:16px; box-shadow:var(--shadow); min-width:210px; padding:6px;
+}
+.menu-item{
+  display:block; width:100%; text-align:left;
+  background:transparent; border:0; color:var(--text);
+  padding:10px 12px; border-radius:10px; cursor:pointer;
+}
+.menu-item:hover{ background:var(--bg); }
+
+/* Minimal action links under each note */
+.actions.minimal{ gap:14px }
+.linkbtn{
+  background:transparent; border:0; padding:0;
+  color:var(--muted); text-decoration:underline; text-underline-offset:3px;
+  font-weight:600; font-size:14px; cursor:pointer;
+}
+.linkbtn:active{ opacity:.7 }
+.item{ cursor:default }         /* card remains tap-safe */
+.item .tap-edit{ cursor:pointer } /* title tap area */
+/* Auth sheet */
+#auth-sheet[hidden]{ display:none!important; }
+#auth-sheet{ position:fixed; inset:0; z-index:100; }
+.sheet-overlay{ position:absolute; inset:0; background:rgba(0,0,0,.35); backdrop-filter:saturate(120%) blur(4px); }
+.sheet{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(520px,92vw); background:var(--card); color:var(--text);
+  border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow);
+  padding:14px 14px 12px;
+}
+.sheet-header{ display:flex; align-items:center; gap:10px; }
+.sheet-title{ font-weight:700; font-size:17px; }
+.icon-x{ border:0; background:transparent; font-size:22px; line-height:1; cursor:pointer; margin-left:auto; color:var(--muted); }
+.sheet-body{ margin-top:8px; display:grid; gap:8px; }
+.sheet-footer{ display:flex; align-items:center; gap:8px; margin-top:12px; }
+
+#auth-email, #auth-pass{ background:var(--bg); }
+#auth-hint{ margin-top:4px; }
+/* Floating + button */
+.fab{
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 16px));
+  bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  width:56px; height:56px; border-radius:50%;
+  border:0; background:var(--blue); color:#fff; cursor:pointer;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.12);
+  display:flex; align-items:center; justify-content:center;
+}
+.fab:active{ transform: translateY(1px); }
+
+/* Minimal, iPhone-friendly action row */
+.actions.minimal{
+  display:flex; align-items:center; gap:8px;
+  flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+.actions.minimal::-webkit-scrollbar{ display:none; }
+
+/* Chip-style buttons (no underline) */
+.chipbtn{
+  border:1px solid var(--border);
+  background:var(--card); color:var(--text);
+  border-radius:12px; padding:6px 10px; font-weight:600; font-size:14px;
+  white-space:nowrap; cursor:pointer;
+}
+.chipbtn:active{ opacity:.8 }
+.chipbtn.primary{ background:var(--blue); color:#fff; border-color:transparent; }
+/* Delete button: white pill, red text */
+.chipbtn.danger{
+  background: var(--card);   /* same as normal chip */
+  color: var(--red);         /* red text */
+  border: 1px solid var(--border); /* same border as others */
+}
+.chipbtn.danger:active{ opacity:.85 }
+/* Autosave status */
+.status{ display:inline-flex; align-items:center; gap:6px; margin-right:8px; font-size:12px; color:var(--muted); }
+.status .dot{
+  width:8px; height:8px; border-radius:50%;
+  background:#c7c7cc; /* idle gray */
+}
+.status.saving .dot{
+  width:10px; height:10px; border:2px solid rgba(10,132,255,.35);
+  border-top-color: var(--blue);
+  background:transparent; border-radius:50%;
+  animation: spin 800ms linear infinite;
+}
+.status.saved{ color: var(--green); }
+.status.saved .dot{ background: var(--green); }
+.status.error{ color: var(--red); }
+.status.error .dot{ background: var(--red); }
+.status .status-text{ user-select:none }
+
+@keyframes spin{ to{ transform: rotate(360deg) } }
+/* Compact controls (buttons + dropdowns) */
+.compact-controls{ position:relative; display:flex; gap:8px; align-items:center; }
+
+/* Reuse icon-btn, but keep it tidy on mobile */
+.icon-btn{ width:36px; height:36px; }
+
+/* Dropdown panel */
+.dd-panel{
+  position:absolute; right:0; top:44px; z-index:60;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:14px; box-shadow:var(--shadow);
+  min-width:220px; padding:6px; backdrop-filter:saturate(120%) blur(2px);
+}
+.dd-panel[hidden]{ display:none!important; }
+.dd-panel .menu-item{ width:100%; text-align:left; }
+.dd-row{ display:grid; gap:6px; margin:6px; }
+
+/* Mobile: keep panels within screen */
+@media (max-width:480px){
+  .dd-panel{ right: -8px; min-width: 72vw; }
+}
+/* Floating red trash icon (no pill) */
+.item{ position: relative; }
+
+.trash-btn{
+  position:absolute; top:8px; right:8px;
+  width:32px; height:32px;
+  border:0; background:transparent; /* no pill */
+  color:var(--red);
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  padding:0;
+}
+.trash-btn:active{ opacity:.75 }
+.trash-btn svg{ display:block; pointer-events:none }
+/* Inline panels (no popups) */
+#inline-panels{ padding:8px 0 6px; }
+.ipanel[hidden]{ display:none!important; }
+.ipanel{
+  border:1px solid var(--border);
+  background:var(--card);
+  border-radius:14px;
+  padding:10px;
+  margin-top:8px;
+}
+@media (max-width:480px){
+  .ipanel{ padding:10px; }
+}
+.search-wrap{
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+}
+.search-wrap input{
+  padding-right: 40px; /* space for the X */
+}
+.search-clear-btn{
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.search-clear-btn:active{ opacity:.8 }
+.search-clear-btn[hidden]{ display:none!important; }
+/* Small pills */
+.pill.sm {
+  padding: 4px 10px;   /* less vertical padding */
+  font-size: 13px;     /* slightly smaller text */
+  border-radius: 8px;  /* a bit less rounded */
+}
+
+/* Sort row: wrap nicely, small gaps */
+.sort-row{ display:flex; flex-wrap:wrap; gap:6px }
+
+/* Filter: compact 2-line grid on phone */
+.filter-grid{
+  display:grid; gap:8px; align-items:end;
+  grid-template-columns: 1fr 1fr minmax(140px, 2fr) auto; /* Type | Target | Tag | Buttons */
+}
+.filter-actions{ display:flex; gap:6px; justify-content:flex-end }
+
+/* Keep inputs comfy but compact */
+#panel-filter select, #panel-filter input{ padding:10px 12px; }
+
+/* Phone tweaks: force at most ~2 lines */
+@media (max-width: 480px){
+  .filter-grid{
+    grid-template-columns: 1fr 1fr;              /* line 1: Type | Target */
+  }
+  #filt-tag{ grid-column: 1 / -1; }              /* line 2: Tag spans full row */
+  .filter-actions{ grid-column: 1 / -1; }        /* buttons end of line 2 */
+}
+/* Sort pills: normal weight */
+#panel-sort .pill.sm{
+  font-weight: 400;   /* un-bold */
+}
+/* Share buttons: normal weight */
+#panel-share .pill,
+#panel-share .pill.sm{
+  font-weight: 400;
+}
+/* Icon-only pills */
+.pill .ico{ display:inline-block; vertical-align:middle; margin:0; }
+/* iPhone: stop focus-zoom only for form fields */
+@media (max-width: 480px) and (pointer: coarse) {
+  /* Inputs only (no buttons) */
+  input, textarea, select {
+    font-size: 16px !important;      /* key: computed >=16px prevents zoom */
+    line-height: 1.2;
+  }
+
+  /* Placeholder text too (Safari checks this as part of the field) */
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 16px !important;
+    opacity: .6;                      /* keep it subtle */
+  }
+
+  /* Keep your pills/buttons at your normal size */
+  button, .pill { font-size: inherit; }
+}
+/* Make the hamburger button icon-only (no white/pill background) */
+#btn-menu{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  width: 38px; height: 38px;          /* keep the comfy tap target */
+  padding: 0;
+}
+
+/* Keep the bars visible */
+#btn-menu .hamb,
+#btn-menu .hamb::before,
+#btn-menu .hamb::after{
+  background: var(--text);
+}
+
+/* Subtle press feedback */
+#btn-menu:active{ opacity: .7; }
+
+/* Keyboard focus ring (accessibility) */
+#btn-menu:focus-visible{
+  outline: 2px solid rgba(10,132,255,.45);
+  outline-offset: 2px;
+}
+.swatch-grid{
+  display:flex; flex-wrap:wrap; gap:8px;
+  padding:6px 0;
+}
+.swatch{
+  width:28px; height:28px; border-radius:8px; cursor:pointer;
+  border:1px solid var(--border);
+  box-shadow: inset 0 0 0 0 rgba(0,0,0,.05);
+}
+.swatch[aria-checked="true"]{
+  outline:2px solid rgba(10,132,255,.45);
+  outline-offset:2px;
+}
+.swatch:active{ transform: translateY(1px); }
+
+/* Color dot on cards */
+.item .color-dot{
+  width:10px; height:10px; border-radius:50%; flex:0 0 10px;
+  border:1px solid rgba(0,0,0,.08); margin-right:8px;
+}
+.swatch-grid.sm .swatch{
+  width:22px; height:22px; border-radius:6px;
+}
+.swatch.any{
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:600; color:var(--muted);
+  background:var(--card);
+}
+/* Replace Save button with autosave indicator */
+#btn-save{ display:none !important; }
+#cancel-sheet[hidden]{ display:none !important; }
+/* Cancel confirmation sheet custom styling */
+.cancel-sheet {
+  border-radius: 20px;
+  padding: 20px 18px 18px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.cancel-sheet .sheet-header {
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.cancel-sheet .sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cancel-sheet .icon-x {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.cancel-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+
+.cancel-footer {
+  display: flex;
+  justify-content: center;   /* center horizontally */
+  gap: 12px;                 /* space between buttons */
+  margin-top: 14px;
+}
+
+.cancel-footer .pill {
+  min-width: 110px;
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 10px 16px;
+}
+
+.cancel-footer #cancel-discard {
+  background: var(--card);
+  color: var(--red);
+  border: 1px solid var(--border);
+}
+
+.cancel-footer #cancel-discard:active {
+  opacity: .8;
+}
+
+.cancel-footer #cancel-save {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+}
+.item-title{ font-weight:700; line-height:1.25; }
+.item-sub{ font-size:.95em; color:var(--muted); line-height:1.4; }
+/* Make the title row align nicely and nudge the dot */
+.tap-edit {
+  display: flex;
+  align-items: center;   /* center everything vertically */
+  gap: 8px;
+}
+
+.tap-edit .color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 10px;
+  margin-top: 2px;       /* fine-tune if it still looks a hair high */
+}
+/* Nudge the flyout down a bit so it isn't touching the button */
+.menu {
+  transform: translateY(8px);
+}
+/* Line clamps for subtitle text */
+.clamp-1{ display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+.clamp-2{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.clamp-3{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* Default to 'normal' unless overridden */
+body[data-layout="compact"] .item .badges,
+body[data-layout="compact"] .item .actions,
+body[data-layout="compact"] .item .meta{
+  display:none !important; /* compact = just title + 1 line */
+}
+
+body[data-layout="normal"] .item .meta{
+  display:none !important; /* normal = pills + 2–3 lines, hide meta row */
+}
+/* Card top-right control group */
+.top-controls{
+  position:absolute;
+  top:8px;
+  right:8px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  z-index:2;
+}
+
+/* Small icon buttons used on cards (avoid the global .icon-btn) */
+.card-ico{
+  border:0;
+  background:transparent;
+  width:28px; height:28px;
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:0; cursor:pointer; border-radius:8px;
+  color: inherit;
+}
+.card-ico:active{ opacity:.8 }
+.card-ico svg{ display:block; width:18px; height:18px }
+
+/* Trash inside the group should NOT be absolute */
+.top-controls .trash-btn{
+  position: static;
+  top:auto; right:auto;
+  width:28px; height:28px;
+  padding:0;
+}
+.top-controls .trash-btn svg{ width:18px; height:18px }
+/* --- Card top-right controls (normal/detailed) --- */
+.top-controls{
+  position:absolute;
+  top:8px; right:8px;
+  display:flex; align-items:center; gap:6px;
+  z-index:2;
+}
+.card-ico{
+  border:0; background:transparent; width:28px; height:28px;
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:0; cursor:pointer; border-radius:8px; color:inherit;
+}
+.card-ico:active{ opacity:.8 }
+.card-ico svg{ width:18px; height:18px; display:block }
+
+/* --- 3-dot menu (compact only) --- */
+.kebab-btn{
+  position:absolute; top:6px; right:6px; z-index:3;
+  width:28px; height:28px; border:0; background:transparent; cursor:pointer;
+  display:none; align-items:center; justify-content:center; border-radius:8px;
+  color: var(--muted);
+}
+.kebab-btn:active{ opacity:.85 }
+.kebab-btn svg{ width:18px; height:18px; display:block }
+
+/* Menu panel inside each card */
+.card-menu[hidden]{ display:none !important; }
+.card-menu{
+  position:absolute; top:38px; right:6px; z-index:4;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; box-shadow:var(--shadow); min-width:160px; padding:6px;
+}
+.card-menu .menu-item{
+  width:100%; text-align:left; border:0; background:transparent; cursor:pointer;
+  color:var(--text); padding:8px 10px; border-radius:8px; font-weight:600; font-size:14px;
+}
+.card-menu .menu-item:hover{ background:var(--bg); }
+
+/* Show/hide by layout */
+body[data-layout="compact"] .top-controls{ display:none !important; }
+body[data-layout="compact"] .kebab-btn{ display:flex !important; }
+/* Default (normal & detailed) */
+.tap-edit {
+  margin: 8px 0 6px;
+  cursor: pointer;
+}
+
+/* Compact layout: tighten spacing */
+body[data-layout="compact"] .tap-edit {
+  margin: 0 0 6px;   /* no top margin, keep bottom */
+}
+/* Unify borders so the same hex looks the same everywhere */
+.swatch{
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;  /* remove the faint inset that tints perception */
+}
+
+/* Make the card dot use the same border logic as swatches */
+.item .color-dot{
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+/* Dark-mode nudge: slightly lighter border so colors don't look “dulled” */
+@media (prefers-color-scheme: dark){
+  .swatch, .item .color-dot{
+    border-color: #3a3a3c !important; /* a hair lighter than --border for clarity */
+  }
+}
+.swatch[aria-checked="true"]{
+  outline: 2px solid rgba(10,132,255,.45);
+  outline-offset: 2px;
+}
+/* ===== Uniform form rhythm (simple + strict) ===== */
+.form .row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 10px 0;            /* 10px space after each row */
+}
+
+.form .field{
+  margin: 0 0 10px 0;            /* 10px space after each label+control group */
+}
+
+/* Labels: EXACT 6 0 4 12; don't touch .toggle labels */
+.form label:not(.toggle label){
+  display: block;
+  margin: 6px 0 4px 12px;
+}
+
+/* Inputs that should be full-width */
+.form input:not([type="checkbox"]):not([type="radio"]),
+.form select,
+.form textarea,
+.form .swatch-field{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin:0;
+}
+
+
+/* Swatches live inside an input-like box so spacing matches other inputs */
+.form .swatch-field{
+  border: 1px solid var(--border, #e2e2e7);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+/* Swatch grid inside the faux input */
+.form .swatch-grid{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+/* Hint text aligns with inputs */
+.form .hint{
+  margin: 6px 12px 0 12px;
+  font-size: 12px;
+  color: #6e6e73;
+}
+
+/* Note block is single-column stack */
+#note-wrap{ display:block; margin: 0 0 10px 0; }
+/* Make a single child in a 2-col .row span full width */
+.form .row > *:only-child { grid-column: 1 / -1; }
+
+/* Opt-in helper: add class="full" to force any field to span both columns */
+.form .row > .full { grid-column: 1 / -1; }
+/* Bulk Export Modal */
+.bulk-modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:9999}
+.bulk-dialog{background:var(--card,#fff);color:var(--text,#111);width:min(720px,92vw);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;max-height:86vh}
+.bulk-head{
+  position: relative;                 /* added */
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:16px 18px;
+  border-bottom:1px solid var(--border,#e5e5ea);
+}
+.bulk-body{padding:14px 18px;overflow:auto}
+.bulk-foot{display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--border,#e5e5ea)}
+.bulk-body .section{margin-bottom:14px}
+.bulk-body .row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.bulk-body .row.two>.field{flex:1}
+.bulk-body label.radio,.bulk-body label.check{display:flex;align-items:center;gap:10px;cursor:pointer}
+.bulk-list{display:flex;flex-direction:column;gap:6px}
+/* AFTER */
+.bulk-item{
+  display:flex;
+  align-items:flex-start;            /* keep flex-start for 2-line text block */
+  gap:10px;
+  padding:10px;
+  border:1px solid var(--border,#e5e5ea);
+  border-radius:12px;
+  cursor:pointer;
+}
+
+/* Center the checkbox vertically in each note row */
+.bulk-item input[type="checkbox"]{
+  margin-top:0;         /* remove the nudge */
+  align-self:center;    /* vertically center within the row */
+}
+
+#bulk-list .color-dot{
+  margin-top:2px;                    /* nudge to title’s baseline */
+}
+
+.bulk-title{
+  line-height:1.25;                  /* stable baseline for the dot to match */
+}
+
+.bulk-meta{
+  font-size:12px;
+  opacity:.75;
+}
+/* Tappable rows: show pointer + a checked state */
+#bulk-list .bulk-item{ cursor:pointer; }
+#bulk-list .bulk-item.is-checked{
+  outline:2px solid var(--accent, #0a84ff);
+  outline-offset:2px;
+  border-color:var(--accent, #0a84ff);
+}
+
+.bulk-title{font-weight:600}
+.icon-btn{appearance:none;background:transparent;border:0;font-size:22px;line-height:1;cursor:pointer}
+.pill{appearance:none;border:1px solid var(--border,#d1d1d6);background:var(--card,#fff);padding:8px 12px;border-radius:999px;font-weight:600;cursor:pointer}
+.pill.primary{border-color:var(--accent,#0a84ff);background:var(--accent,#0a84ff);color:#fff}
+.pill.ghost{background:transparent}
+.spacer{flex:1}
+.hint{opacity:.8}
+.actions{display:flex;gap:8px}
+.space-between{justify-content:space-between}
+.color-dot{width:10px;height:10px;border-radius:50%}
+/* Ensure the bulk export modal actually hides when [hidden] is present */
+#bulk-modal[hidden] { 
+  display: none !important; 
+}
+/* Make the export modal close button a pill in the top-right */
+.bulk-head #bulk-cancel{
+  position:absolute;
+  top:12px;
+  right:12px;
+
+  /* look like .pill without changing markup */
+  appearance:none;
+  background:var(--card,#fff);
+  color:var(--text,#111);
+  border:1px solid var(--border,#d1d1d6);
+  border-radius:999px;
+  padding:8px 12px;
+  font-weight:600;
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+}
+
+/* optional: slight lift on hover to match your pill vibe */
+.bulk-head #bulk-cancel:hover{ transform: translateY(-1px); }
+/* header container of the export modal */
+.bulk-head{
+  position: relative; /* lets us absolutely-position the button */
+}
+
+/* place the pill exactly like the edit modal */
+.bulk-head #bulk-cancel{
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  padding: 8px 12px;   /* same pill sizing */
+  line-height: 1;
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Memorizer</h1>
+    <span class="badge" id="user-badge">Not signed in</span>
+    <div class="spacer"></div>
+
+    <!-- Hamburger -->
+    <button class="icon-btn" id="btn-menu" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
+      <span class="hamb"></span>
+    </button>
+
+    <!-- Flyout menu -->
+    <div class="menu" id="flyout" hidden>
+      <div class="menu-secthead" style="padding:6px 8px; font-size:12px; color:var(--muted);">
+        List layout
+      </div>
+      <button class="menu-item" data-layout="compact">Compact</button>
+      <button class="menu-item" data-layout="normal">Normal</button>
+      <button class="menu-item" data-layout="detailed">Detailed</button>
+
+      <div class="divider" style="margin:6px 0;"></div>
+
+      <button class="menu-item" id="btn-auth">Sign in</button>
+      <button class="menu-item" id="btn-edit-name">Edit display name</button>
+      <button class="menu-item" id="btn-import">Import CSV</button>
+    </div>
+
+  </div>
+
+  <!-- Create / Edit -->
+  <div class="card" id="editor" hidden>
+    <div class="bar">
+      <div class="section-title">New Memory</div>
+      <div class="spacer"></div>
+      <!-- Autosave indicator now takes Save button’s place -->
+      <span id="save-status" class="status" aria-live="polite" hidden>
+        <span class="dot"></span><span class="status-text"></span>
+      </span>
+      <button class="pill" id="btn-cancel">Cancel</button>
+    </div>
+    <div class="divider"></div>
+
+    <div class="form">
+
+      <!-- Type (own row) -->
+      <div class="row">
+        <div class="field">
+          <label>Type</label>
+          <select id="f-type">
+            <option value="note">Note</option>
+            <option value="qa">Question & Answer</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tags (own row) -->
+      <div class="row">
+        <div class="field">
+          <label>Tags (comma-separated)</label>
+          <input id="f-tags" type="text" placeholder="e.g. Bible, VOR, Weight&Balance" />
+        </div>
+      </div>
+
+      <!-- Hidden delivery target (used by autosave/export) -->
+      <input id="f-target" type="hidden" value="calendar" />
+
+      <!-- Q (own row; shown when type === 'qa') -->
+      <div id="qa-wrap">
+        <div class="row">
+          <div class="field">
+            <label>Question</label>
+            <textarea id="f-question" placeholder="What is pivotal altitude?"></textarea>
+          </div>
+        </div>
+
+        <!-- A (own row; shown when type === 'qa') -->
+        <div class="row">
+          <div class="field">
+            <label>Answer</label>
+            <textarea id="f-answer" placeholder="PA = v² / 11.3 (knots)"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Note (each on its own row; shown when type === 'note') -->
+      <div id="note-wrap">
+        <div class="row">
+          <div class="field">
+            <label>Title (optional)</label>
+            <input id="f-title" type="text" placeholder="Short title…" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Note</label>
+            <textarea id="f-note" placeholder="Short, memorable note…"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Color (own row) -->
+      <div class="row">
+        <div class="field color-field full">
+          <label>Color</label>
+          <div class="swatch-field">
+            <div id="color-swatch-wrap" class="swatch-grid" role="radiogroup" aria-label="Color">
+              <!-- swatches injected by JS -->
+            </div>
+          </div>
+          <input id="color-value" type="text" class="mono" placeholder="#8e8e93" />
+          <div class="hint">Tap a swatch or paste a hex (e.g., #c7d2ff).</div>
+        </div>
+      </div>
+
+      <!-- Include answer toggle (UNCHANGED) -->
+      <div class="row">
+        <div class="toggle">
+          <input id="f-include-answer" type="checkbox" checked />
+          <label for="f-include-answer">Include answer in delivery</label>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="bar"><div class="section-title">Schedule Options</div></div>
+
+      <div class="row" style="margin-bottom:8px">
+        <div>
+          <label>Mode</label>
+          <select id="sched-mode">
+            <option value="once">One-time</option>
+            <option value="random">Randomized (range)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- One-time ONLY -->
+      <div id="once-block">
+        <label>Date & Time</label>
+        <input id="once-dt" type="datetime-local" />
+      </div>
+
+      <!-- Randomized ONLY -->
+      <div id="random-block" hidden>
+        <div class="row">
+          <div>
+            <label>Date Range (start → end)</label>
+            <div class="row">
+              <input id="rand-start" type="date" />
+              <input id="rand-end" type="date" />
+            </div>
+          </div>
+          <div>
+            <label>Daily Time Window (start → end)</label>
+            <div class="row">
+              <input id="rand-t1" type="time" value="09:00" />
+              <input id="rand-t2" type="time" value="21:00" />
+            </div>
+          </div>
+          <div>
+            <label>How many occurrences (total)</label>
+            <input id="rand-count" type="text" inputmode="numeric" placeholder="e.g. 10" />
+          </div>
+        </div>
+        <div class="hint">We’ll spread them randomly inside the window across the range.</div>
+      </div>
+    </div>
+  </div>
+
+    <!-- Bulk actions -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">Notes</div>
+        <div class="compact-controls">
+          <button class="pill sm" id="btn-search" aria-label="Search" title="Search">
+            <svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M20 20l-3.2-3.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <button class="pill sm" id="btn-sort">Sort</button>
+          <button class="pill sm" id="btn-filter">Filter</button>
+
+          <button class="pill sm" id="btn-share" aria-label="Share" title="Share">
+            <svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M16 6l-4-4-4 4M12 2v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 12v6a2 2 0 0 0 2 2h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INLINE PANELS (sit above the divider) -->
+    <div id="inline-panels">
+      <!-- Search -->
+      <div class="ipanel" id="panel-search" hidden>
+        <div class="row" style="gap:8px;align-items:center">
+          <div class="search-wrap">
+            <input id="search-q" type="text" placeholder="Type keywords…" />
+            <button id="search-clear" class="search-clear-btn" aria-label="Clear search" hidden>
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="hint">Matches title, answer, note, tags • any order • live</div>
+      </div>
+
+      <!-- Sort -->
+      <div class="ipanel" id="panel-sort" hidden>
+        <div class="sort-row">
+          <button class="pill sm" data-sort="newest">Newest</button>
+          <button class="pill sm" data-sort="oldest">Oldest</button>
+          <button class="pill sm" data-sort="az">A–Z</button>
+          <button class="pill sm" data-sort="za">Z–A</button>
+          <button class="pill sm" data-sort="type">Type</button>
+          <button class="pill sm" data-sort="color">Color</button>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="ipanel" id="panel-filter" hidden>
+        <div class="filter-grid">
+          <div>
+            <label>Type</label>
+            <select id="filt-type">
+              <option value="any">Any</option>
+              <option value="qa">Q&A</option>
+              <option value="note">Note</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Tag</label>
+            <select id="filt-tag">
+              <option value="">Any tag</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Color</label>
+            <div id="filt-color-wrap" class="swatch-grid sm" role="radiogroup" aria-label="Filter by color">
+              <!-- swatches injected by JS; includes “Any” -->
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button class="pill sm" id="filt-clear">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="list" id="list"></div>
+  </div>
+
+  <!-- Email/Password Auth Sheet -->
+<div id="auth-sheet" hidden>
+  <div class="sheet-overlay"></div>
+  <div class="sheet">
+    <div class="sheet-header">
+      <div class="sheet-title">Sign in</div>
+      <button class="icon-x" id="auth-close" aria-label="Close">×</button>
+    </div>
+
+    <div class="sheet-body">
+      <label>Email</label>
+      <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" />
+
+      <label>Password</label>
+      <input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <div class="hint" id="auth-hint">Use at least 6 characters.</div>
+
+      <label id="auth-name-label">Display name (shown on main page)</label>
+      <input id="auth-name" type="text" placeholder="e.g., David" autocomplete="name" />
+
+      <div class="bar" style="justify-content:flex-end;margin-top:6px">
+        <button class="pill" id="auth-forgot">Forgot?</button>
+      </div>
+    </div>
+
+    <div class="sheet-footer">
+      <button class="pill" id="auth-toggle">Need an account?</button>
+      <div class="spacer"></div>
+      <button class="pill" id="auth-cancel">Cancel</button>
+      <button class="pill primary" id="auth-action">Sign in</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- Floating Add (+) -->
+<button id="fab-new" class="fab" aria-label="Add item">
+  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+</button>
+
+<!-- Bulk Export Wizard -->
+<div id="bulk-modal" class="bulk-modal" hidden>
+  <div class="bulk-dialog" role="dialog" aria-modal="true" aria-labelledby="bulk-title">
+    <div class="bulk-head">
+      <h2 id="bulk-title">Export to Calendar</h2>
+      <button class="pill" id="bulk-cancel" type="button">Cancel</button>
+    </div>
+
+    <div class="bulk-body">
+      <!-- Step: Preferences -->
+      <section id="bulk-step-prefs">
+        <div class="section">
+          <div class="row">
+            <label class="radio">
+              <input type="radio" name="bulk-mode" value="new" checked>
+              Export only items not yet uploaded
+            </label>
+          </div>
+          <div class="row">
+            <label class="radio">
+              <input type="radio" name="bulk-mode" value="all">
+              Export all items
+            </label>
+          </div>
+          <div class="row">
+            <label class="radio">
+              <input type="radio" name="bulk-mode" value="pick">
+              Let me pick which items to export
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label class="check">
+              <input id="bulk-inc-notes" type="checkbox" checked> Include Notes
+            </label>
+          </div>
+          <div class="row">
+            <label class="check">
+              <input id="bulk-inc-qa" type="checkbox" checked> Include Q&A
+            </label>
+          </div>
+          <div class="row">
+            <label class="check">
+              <input id="bulk-inc-drafts" type="checkbox"> Include Drafts (untitled)
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row two">
+            <div class="field">
+              <label>Start (optional)</label>
+              <input id="bulk-date-start" type="date">
+            </div>
+            <div class="field">
+              <label>End (optional)</label>
+              <input id="bulk-date-end" type="date">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step: Select items (visible only if mode=pick) -->
+      <section id="bulk-step-pick" hidden>
+        <div class="section">
+          <div class="row space-between">
+            <div class="hint" id="bulk-count">0 items</div>
+            <div class="actions">
+              <button class="pill sm" id="bulk-select-all">Select All</button>
+              <button class="pill sm" id="bulk-clear-all">Clear</button>
+            </div>
+          </div>
+          <div id="bulk-list" class="bulk-list">
+            <!-- populated by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Step: Summary -->
+      <section id="bulk-step-summary" hidden>
+        <div class="section">
+          <div class="hint" id="bulk-summary-text">Ready to export.</div>
+          <label class="check">
+            <input id="bulk-mark-uploaded" type="checkbox" checked>
+            Mark exported items as uploaded
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <div class="bulk-foot">
+      <button class="pill ghost" id="bulk-back" hidden>Back</button>
+      <div class="spacer"></div>
+      <button class="pill" id="bulk-next">Next</button>
+      <button class="pill primary" id="bulk-export" hidden>Export .ics</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Confirmation Sheet -->
+<div id="cancel-sheet" hidden>
+  <div class="sheet-overlay" data-cancel-close></div>
+  <div class="sheet cancel-sheet" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
+    <div class="sheet-header">
+      <div id="cancel-title" class="sheet-title">Unsaved Changes</div>
+      <button class="icon-x" id="cancel-x" aria-label="Close">×</button>
+    </div>
+    <div class="sheet-body">
+      <p class="cancel-text">
+        You have changes that aren’t saved yet or a save error occurred.
+        Do you want to <strong>Save &amp; Close</strong> or <strong>Discard</strong>?
+      </p>
+    </div>
+    <div class="sheet-footer cancel-footer">
+      <button class="pill" id="cancel-discard">Discard</button>
+      <button class="pill primary" id="cancel-save">Save &amp; Close</button>
+    </div>
+  </div>
+</div>
+
+<input id="csv-input" type="file" accept=".csv,text/csv" hidden />
+
+<!-- ===== Firebase + App ===== -->
+<script type="module">
+  // Firebase v12 SDKs
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+  import {
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
+    collection, addDoc, onSnapshot, query, orderBy,
+    serverTimestamp, doc, deleteDoc, updateDoc, getDocs, writeBatch
+  } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+  // Your config (from your message)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAxrmj1xOXdA1TMnPyMTigapOmBUnqoe6w",
+    authDomain: "quiz-notes.firebaseapp.com",
+    projectId: "quiz-notes",
+    storageBucket: "quiz-notes.firebasestorage.app",
+    messagingSenderId: "1006629490571",
+    appId: "1:1006629490571:web:5fce57845f5f4cbba5a98e",
+    measurementId: "G-4MG4S5SQL2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  getAnalytics(app);
+  const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    }),
+    ignoreUndefinedProperties: true
+  });
+
+  // ---------- UI refs
+  const listEl    = document.getElementById('list');
+  const editor    = document.getElementById('editor');
+  const btnNew    = document.getElementById('fab-new');
+  const btnCancel = document.getElementById('btn-cancel');
+  const btnImport = document.getElementById('btn-import');
+  const csvInput  = document.getElementById('csv-input');
+  const bulkCal   = document.getElementById('bulk-cal');
+  const bulkRem   = document.getElementById('bulk-rem');
+
+  // Form refs
+  const fType = document.getElementById('f-type');
+  const fTags = document.getElementById('f-tags');
+  const fQ    = document.getElementById('f-question');
+  const fA    = document.getElementById('f-answer');
+  const fNote = document.getElementById('f-note');
+  const fAns  = document.getElementById('f-include-answer');
+  const fTarget = document.getElementById('f-target');
+
+  const qaWrap  = document.getElementById('qa-wrap');
+  const noteWrap= document.getElementById('note-wrap');
+
+  const onceWrap= document.getElementById('once-wrap');
+  const randWrap= document.getElementById('rand-wrap');
+  const nameLabel = document.getElementById('auth-name-label');
+  const nameEl    = document.getElementById('auth-name');
+  const fTitle = document.getElementById('f-title');
+
+// ----- Schedule refs
+const modeSel     = document.getElementById('sched-mode');
+const onceBlock   = document.getElementById('once-block');
+const randomBlock = document.getElementById('random-block');
+
+const onceDT  = document.getElementById('once-dt');
+const rStart  = document.getElementById('rand-start');
+const rEnd    = document.getElementById('rand-end');
+const rT1     = document.getElementById('rand-t1');
+const rT2     = document.getElementById('rand-t2');
+const rCount  = document.getElementById('rand-count');
+
+// Cancel confirm sheet wiring
+const cancelSheet      = document.getElementById('cancel-sheet');
+const cancelSaveBtn    = document.getElementById('cancel-save');
+const cancelDiscardBtn = document.getElementById('cancel-discard');
+const cancelCloseX     = document.getElementById('cancel-x');
+const cancelOverlay    = cancelSheet?.querySelector('[data-cancel-close]');
+
+function openCancelConfirm(){
+  if (!cancelSheet) return;
+  cancelSheet.hidden = false;
+}
+function closeCancelConfirm(){
+  if (!cancelSheet) return;
+  cancelSheet.hidden = true;
+}
+
+cancelSaveBtn?.addEventListener('click', async ()=>{
+  try { await performAutosave(); } catch(_){}
+  // Close regardless; autosave already sets status + lastSavedPayload
+  closeCancelConfirm();
+  toggleEditor(false);
+  setEditing(null);
+  lastSavedPayload = null;
+  setStatus(null);
+});
+
+cancelDiscardBtn?.addEventListener('click', ()=>{
+  closeCancelConfirm();
+  toggleEditor(false);
+  setEditing(null);
+  lastSavedPayload = null;
+  setStatus(null);
+});
+
+cancelCloseX?.addEventListener('click', closeCancelConfirm);
+cancelOverlay?.addEventListener('click', closeCancelConfirm);
+
+const saveStatus = document.getElementById('save-status');
+
+// --- Edit state ---
+let currentEditId = null;   // the Firestore doc id for the thing being edited
+let isCreatingNew = false;  // true only when composing a brand-new item
+
+function setEditing(id){
+  currentEditId = id || null;
+  document.body.dataset.editing = currentEditId ? '1' : '0';
+}
+
+// ----- List + Sort/Filter/Search state
+let itemsCache = []; // filled from Firestore snapshot
+let currentSort = 'newest';
+let currentFilter = { type: 'any', tag: '', color: 'any' };
+let searchQuery = '';
+// === List layout mode (compact | normal | detailed)
+let LAYOUT_MODE = localStorage.getItem('list-layout') || 'normal';
+
+function applyLayoutMode(){
+  document.body.setAttribute('data-layout', LAYOUT_MODE);
+  try{ renderList && renderList(); }catch(_){}
+}
+applyLayoutMode();
+
+// ----- Inline controls (buttons)
+const btnSearch = document.getElementById('btn-search');
+const btnSort   = document.getElementById('btn-sort');
+const btnFilter = document.getElementById('btn-filter');
+const btnShare  = document.getElementById('btn-share');
+
+// ----- Inline panels (render above divider)
+const pSearch = document.getElementById('panel-search');
+const pSort   = document.getElementById('panel-sort');
+const pFilter = document.getElementById('panel-filter');
+
+// ----- Search controls
+const searchInput = document.getElementById('search-q');
+const searchClear = document.getElementById('search-clear');
+
+// ----- Filter controls
+const filtType   = document.getElementById('filt-type');
+const filtTag    = document.getElementById('filt-tag');
+const filtClear  = document.getElementById('filt-clear');
+const filtColorWrap = document.getElementById('filt-color-wrap');
+
+// ----- Share (bulk) keeps your existing IDs for handlers elsewhere
+// (#bulk-cal, #bulk-rem exist inside pShare)
+
+// ----- Color palette
+const PALETTE = [
+  '#8e8e93', // Gray (default)
+  '#a3a8b8', // Cool Gray
+  '#b3c7ff', // Soft Blue
+  '#c7d2ff', // Indigo Tint
+  '#9dd7d0', // Teal Mint
+  '#a9e4b3', // Soft Green
+  '#d9f196', // Lime Tint
+  '#ffe3a3', // Warm Amber
+  '#ffd0a8', // Peach
+  '#f6b8c8', // Rose
+  '#e8b9ff', // Lavender
+  '#c8b7a6'  // Taupe
+];
+
+const swatchWrap = document.getElementById('color-swatch-wrap');
+const colorInput = document.getElementById('color-value');
+
+function buildFilterSwatches(){
+  if (!filtColorWrap || filtColorWrap.children.length) return;
+
+  // “Any” chip
+  const any = document.createElement('button');
+  any.type='button';
+  any.className='swatch any';
+  any.textContent='Any';
+  any.setAttribute('role','radio');
+  any.setAttribute('aria-checked','true');
+  any.dataset.hex='any';
+  any.addEventListener('click', ()=>{
+    setFilterColor('any');
+    updateListView();
+  });
+  filtColorWrap.appendChild(any);
+
+  // Palette swatches
+  PALETTE.forEach(hex=>{
+    const b = document.createElement('button');
+    b.type='button';
+    b.className='swatch';
+    b.style.background=hex;
+    b.setAttribute('role','radio');
+    b.setAttribute('aria-checked','false');
+    b.dataset.hex=hex;
+    b.addEventListener('click', ()=>{
+      setFilterColor(hex);
+      updateListView();
+    });
+    filtColorWrap.appendChild(b);
+  });
+}
+
+function setFilterColor(val){
+  currentFilter.color = val; // 'any' or '#hex'
+  [...filtColorWrap.children].forEach(el=>{
+    el.setAttribute('aria-checked', el.dataset.hex === val ? 'true' : 'false');
+  });
+}
+
+function buildSwatches(){
+  if (!swatchWrap || swatchWrap.children.length) return;
+  PALETTE.forEach((hex, idx)=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch';
+    b.style.background = hex;
+    b.setAttribute('role','radio');
+    b.setAttribute('aria-checked','false');
+    b.setAttribute('aria-label', hex);
+    b.dataset.hex = hex;
+    b.addEventListener('click', ()=>{
+      colorInput.value = hex;
+      reflectSelected(hex);
+      queueAutosave && queueAutosave();
+    });
+    swatchWrap.appendChild(b);
+  });
+}
+
+function normalizeHex(h){
+  const v = (h || '').trim();
+  if (/^#([0-9a-f]{3})$/i.test(v)){
+    // expand #abc → #aabbcc
+    return '#' + v.slice(1).split('').map(ch => ch+ch).join('').toLowerCase();
+  }
+  if (/^#([0-9a-f]{6})$/i.test(v)) return v.toLowerCase();
+  return '';
+}
+
+colorInput.addEventListener('input', ()=>{
+  const raw = colorInput.value;
+  const norm = normalizeHex(raw);
+  if (norm){
+    colorInput.value = norm;           // keep a consistent 6-digit lower-case hex
+    reflectSelected(norm);             // your function
+    queueAutosave && queueAutosave();  // your autosave
+  }
+});
+
+function reflectSelected(hex){
+  [...swatchWrap.children].forEach(el=>{
+    el.setAttribute('aria-checked', el.dataset.hex.toLowerCase() === (hex||'').toLowerCase() ? 'true' : 'false');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildSwatches();         // fills #color-swatch-wrap in the editor
+  buildFilterSwatches();   // fills #filt-color-wrap in the Filter panel
+});
+
+// ---------- Panel toggling (inline, not popups)
+function closeAllPanels(){
+  [pSearch, pSort, pFilter].forEach(p => p && p.setAttribute('hidden',''));
+}
+function togglePanel(panel){
+  const willOpen = panel.hasAttribute('hidden');
+  closeAllPanels();
+  if (willOpen) panel.removeAttribute('hidden');
+}
+
+// Buttons open/close
+btnSearch.addEventListener('click', ()=>{ togglePanel(pSearch); if (!pSearch.hasAttribute('hidden')) searchInput.focus(); });
+btnSort  .addEventListener('click', ()=> togglePanel(pSort));
+btnFilter.addEventListener('click', ()=>{
+  togglePanel(pFilter);
+  if (!pFilter.hasAttribute('hidden')) {
+    buildFilterSwatches();
+    setFilterColor(currentFilter.color || 'any');
+  }
+});
+btnShare.addEventListener('click', ()=> openBulkExportWizard('calendar'));
+
+// ---------- Sort
+pSort.querySelectorAll('[data-sort]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    currentSort = b.getAttribute('data-sort');
+    updateListView();
+  });
+});
+
+// ---------- Filter (auto-apply with dropdown tags)
+filtClear.addEventListener('click', ()=>{
+  // reset UI
+  filtType.value = 'any';
+  // reset dropdown back to "Any"
+  const tagSel = document.getElementById('filt-tag');
+  if (tagSel) tagSel.value = '';
+  setFilterColor('any'); // keeps color live-update
+
+  // reset state + re-render
+  currentFilter.type = 'any';
+  currentFilter.tag  = '';
+  updateListView();
+});
+
+// live-update on Type change
+filtType.addEventListener('change', ()=>{
+  currentFilter.type = filtType.value;
+  updateListView();
+});
+
+// live-update on Tag dropdown change
+filtTag.addEventListener('change', ()=>{
+  currentFilter.tag = (filtTag.value || '');
+  updateListView();
+});
+
+// --- Tag dropdown helpers ---
+function harvestItemsForTags(){
+  // Prefer your in-memory list if present (adjust the name if yours differs)
+  if (Array.isArray(window._lastItems) && window._lastItems.length){
+    return window._lastItems;
+  }
+  // Fallback: scrape from DOM .item cards (expects tags in meta or data-tags)
+  const items = [];
+  document.querySelectorAll('.item').forEach(card=>{
+    const meta = card.querySelector('.meta')?.textContent || '';
+    const dataTags = card.getAttribute('data-tags') || '';
+    const tags = []
+      .concat(dataTags.split(','))
+      .concat(meta.split(','))
+      .map(t => String(t||'').trim().replace(/^#/, '').toLowerCase())
+      .filter(Boolean);
+    items.push({ tags });
+  });
+  return items;
+}
+
+// --- Tag dropdown helpers (preserve display case) ---
+function computeAllTagsFromTagsField(){
+  const map = new Map(); // key = lowercase, value = original
+  (itemsCache || []).forEach(it=>{
+    if (Array.isArray(it.tags)){
+      it.tags.forEach(raw=>{
+        const orig = String(raw || '').trim();
+        if (!orig) return;
+        const lc = orig.toLowerCase();
+        if (!map.has(lc)) map.set(lc, orig); // keep first-seen original casing
+      });
+    }
+  });
+  // return in display form, sorted case-insensitive
+  return Array.from(map.values()).sort((a,b)=> a.toLowerCase().localeCompare(b.toLowerCase()));
+}
+
+function populateTagDropdown(){
+  const sel = document.getElementById('filt-tag');
+  if (!sel) return;
+
+  const prev = sel.value || '';
+  const tags = computeAllTagsFromTagsField();
+
+  sel.innerHTML = '<option value="">Any tag</option>' +
+    tags.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  if (prev && tags.includes(prev)) sel.value = prev;
+}
+
+// ---------- Search (live, order-agnostic)
+let searchTimer = null;
+const SEARCH_DELAY = 120;
+
+function norm(s){
+  return (s||'').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function tokens(s){
+  return norm(s).split(/[^a-z0-9]+/).filter(Boolean);
+}
+function searchableOf(it){
+  const title = it.type==='qa' ? (it.q||it.title||'') : (it.note||it.title||'');
+  const ans   = it.type==='qa' ? (it.a||'') : '';
+  const tags  = (it.tags||[]).join(' ');
+  return norm([title, ans, tags].join(' '));
+}
+function matchesSearch(it, q){
+  const ts = tokens(q);
+  if (!ts.length) return true;
+  const hay = searchableOf(it);
+  return ts.every(t => hay.includes(t));
+}
+
+function applySearchNow(){
+  searchQuery = searchInput.value || '';
+  updateListView();
+}
+searchInput.addEventListener('input', ()=>{
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(applySearchNow, SEARCH_DELAY);
+});
+searchClear.addEventListener('click', ()=>{ searchInput.value=''; applySearchNow(); });
+
+// ---------- Helpers used by updateListView (you likely already have sort/passesFilter)
+function titleOf(it){
+  if (it.type === 'qa') return (it.q || it.title || '').trim();
+  return (it.title || it.note || '').trim(); // prefer Title for notes
+}
+
+function sortItems(arr){
+  const a = [...arr];
+  if (currentSort === 'newest'){
+    a.sort((x,y)=> (y.createdClient||'').localeCompare(x.createdClient||''));
+  } else if (currentSort === 'oldest'){
+    a.sort((x,y)=> (x.createdClient||'').localeCompare(y.createdClient||''));
+  } else if (currentSort === 'az'){
+    a.sort((x,y)=> titleOf(x).localeCompare(titleOf(y), undefined, {sensitivity:'base'}));
+  } else if (currentSort === 'za'){
+    a.sort((x,y)=> titleOf(y).localeCompare(titleOf(x), undefined, {sensitivity:'base'}));
+  } else if (currentSort === 'type'){
+    const rank = it => (it.type==='qa'?0:1);
+    a.sort((x,y)=> rank(x)-rank(y) || (y.createdClient||'').localeCompare(x.createdClient||''));
+  } else if (currentSort === 'color'){
+    const idx = (hex)=>{
+      const c = (hex || '#8e8e93').toLowerCase();
+      const i = PALETTE.map(x=>x.toLowerCase()).indexOf(c);
+      return i === -1 ? 999 : i;
+    };
+    a.sort((x,y)=> idx(x.color)-idx(y.color) || (y.createdClient||'').localeCompare(x.createdClient||''));
+  }
+  return a;
+}
+
+function passesFilter(it){
+  if (currentFilter.type !== 'any' && it.type !== currentFilter.type) return false;
+
+  if (currentFilter.tag){
+    const tags = (it.tags || []).map(t => String(t).trim().toLowerCase());
+    if (!tags.includes(currentFilter.tag.toLowerCase())) return false;
+  }
+
+  if (currentFilter.color && currentFilter.color !== 'any'){
+    const c = (it.color || '#8e8e93').toLowerCase();
+    if (c !== currentFilter.color.toLowerCase()) return false;
+  }
+  return true;
+}
+
+modeSel.addEventListener('change', switchMode);
+
+// Render with sort + filter
+function updateListView(){
+  const filtered = itemsCache.filter(it=>{
+    const titleish = it.type==='qa' ? (it.q||'') : (it.note||'');
+    if (it.draft && !titleish) return false;
+    if (!passesFilter(it)) return false;
+    if (!matchesSearch(it, searchQuery)) return false; // ← add this line
+    return true;
+  });
+  const ordered = sortItems(filtered);
+
+  const frag = document.createDocumentFragment();
+  if (!ordered.length){
+    const emp = document.createElement('div');
+    emp.className='hint';
+    emp.textContent = 'No items match.';
+    frag.appendChild(emp);
+  } else {
+    ordered.forEach(it=> frag.appendChild(renderItem(it)));
+  }
+  listEl.replaceChildren(frag);
+  populateTagDropdown();   // <— ADD THIS LINE
+}
+
+function updateSearchClearVisibility(){
+  const hasText = (searchInput.value || '').length > 0;
+  if (hasText) searchClear.removeAttribute('hidden');
+  else searchClear.setAttribute('hidden','');
+}
+
+searchInput.addEventListener('input', updateSearchClearVisibility);
+
+// Ensure correct state when panel opens
+btnSearch.addEventListener('click', ()=>{
+  // your existing togglePanel(pSearch) + focus call runs here
+  setTimeout(updateSearchClearVisibility, 0);
+});
+
+// Clear behavior (keeps your live filtering)
+searchClear.addEventListener('click', ()=>{
+  searchInput.value = '';
+  updateSearchClearVisibility();
+  searchInput.focus();
+  applySearchNow();
+});
+
+// Add this near your other top-level vars if not present yet:
+let saveState = 'idle';
+
+function setStatus(state){
+  // Keep a simple in-memory flag of the last status
+  saveState = state || 'idle';
+
+  // Hide for null/undefined/"" (i.e., 'idle')
+  if (!state) {
+    saveStatus.hidden = true;
+    saveStatus.classList.remove('saving','saved','error');
+    const text = saveStatus.querySelector('.status-text');
+    if (text) text.textContent = '';
+    return;
+  }
+
+  // Show only for active states
+  saveStatus.hidden = false;
+  saveStatus.classList.remove('saving','saved','error');
+  saveStatus.classList.add(state);
+
+  const text = saveStatus.querySelector('.status-text');
+  if (!text) return;
+
+  if (state === 'saving') text.textContent = 'Saving…';
+  else if (state === 'saved') text.textContent = 'Saved';
+  else if (state === 'error') text.textContent = 'Error';
+}
+
+  // ----- Hamburger menu
+  const menuBtn = document.getElementById('btn-menu');
+  const flyout  = document.getElementById('flyout');
+
+  menuBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const open = flyout.hasAttribute('hidden') ? false : true;
+    if (open){
+      flyout.setAttribute('hidden','');
+      menuBtn.setAttribute('aria-expanded','false');
+    } else {
+      flyout.removeAttribute('hidden');
+      menuBtn.setAttribute('aria-expanded','true');
+    }
+  });
+
+  document.addEventListener('click', (e)=>{
+    if (!flyout.hasAttribute('hidden') && !flyout.contains(e.target) && e.target !== menuBtn){
+      flyout.setAttribute('hidden','');
+      menuBtn.setAttribute('aria-expanded','false');
+    }
+  });
+
+  const btnEditName = document.getElementById('btn-edit-name');
+btnEditName.addEventListener('click', ()=>{
+  const u = auth.currentUser;
+  if (!u){ openSheet('signin'); return; }
+  // open in "profile edit" flavor: reuse sheet with only name active
+  sheet.removeAttribute('hidden');
+  document.querySelector('.sheet-title').textContent = 'Edit display name';
+  toggleBtn.textContent = '';
+  toggleBtn.style.visibility = 'hidden';
+  emailEl.value = u.email || '';
+  passEl.value  = ''; // ignore
+  nameEl.value  = u.displayName || '';
+  nameLabel.style.display = '';
+  nameEl.style.display = '';
+
+  // Make the action just update the name
+  actionBtn.textContent = 'Save name';
+  actionBtn.onclick = async ()=>{
+    const disp = (nameEl.value||'').trim();
+    if (!disp){ alert('Enter a name.'); return; }
+    try{
+      await updateProfile(auth.currentUser, { displayName: disp });
+      badge.textContent = disp || (auth.currentUser.email || auth.currentUser.uid);
+      closeSheet();
+    }catch(e){
+      alert(e.message || 'Could not update name.');
+    } finally {
+      // restore default handler after save
+      actionBtn.onclick = null;
+      toggleBtn.style.visibility = '';
+    }
+  };
+});
+
+document.querySelectorAll('.menu-item[data-layout]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    LAYOUT_MODE = btn.dataset.layout;
+    localStorage.setItem('list-layout', LAYOUT_MODE);
+    applyLayoutMode();
+  });
+});
+
+// ---------- Auth (Email/Password)
+const auth = getAuth(app);
+await setPersistence(auth, browserLocalPersistence).catch(console.error);
+
+const authBtn   = document.getElementById('btn-auth');   // menu item
+const badge     = document.getElementById('user-badge'); // already in your header
+const sheet     = document.getElementById('auth-sheet');
+const closeX    = document.getElementById('auth-close');
+const cancelBtn = document.getElementById('auth-cancel');
+const toggleBtn = document.getElementById('auth-toggle');
+const actionBtn = document.getElementById('auth-action');
+const forgotBtn = document.getElementById('auth-forgot');
+const emailEl   = document.getElementById('auth-email');
+const passEl    = document.getElementById('auth-pass');
+const hintEl    = document.getElementById('auth-hint');
+
+let authMode = 'signin'; // 'signin' | 'register'
+
+function openSheet(mode='signin'){
+  authMode = mode;
+  sheet.removeAttribute('hidden');
+  emailEl.value = '';
+  passEl.value  = '';
+  nameEl.value  = '';
+
+  const isRegister = (authMode === 'register');
+  document.querySelector('.sheet-title').textContent = isRegister ? 'Create account' : 'Sign in';
+  toggleBtn.textContent = isRegister ? 'Have an account?' : 'Need an account?';
+  actionBtn.textContent = isRegister ? 'Create account' : 'Sign in';
+  hintEl.textContent = isRegister
+    ? 'Use at least 6 characters (Email + Password).'
+    : 'Enter your email and password.';
+
+  // Show display-name field for both, but prefill on sign-in if we can
+  nameLabel.style.display = '';
+  nameEl.style.display = '';
+  const u = auth.currentUser;
+  if (!isRegister && u && (u.displayName || '').trim()){
+    nameEl.value = u.displayName;
+  }
+
+  setTimeout(()=>emailEl.focus(), 0);
+}
+
+function closeSheet(){ sheet.setAttribute('hidden',''); }
+
+toggleBtn.addEventListener('click', ()=>{
+  openSheet(authMode==='register' ? 'signin' : 'register');
+});
+closeX.addEventListener('click', closeSheet);
+cancelBtn.addEventListener('click', closeSheet);
+
+forgotBtn.addEventListener('click', async ()=>{
+  const email = (emailEl.value||'').trim();
+  if (!email){ alert('Enter your email first.'); emailEl.focus(); return; }
+  try{
+    await sendPasswordResetEmail(auth, email);
+    alert('Reset email sent. Check your inbox.');
+  }catch(e){
+    alert(e.message || 'Could not send reset email.');
+  }
+});
+
+actionBtn.addEventListener('click', async ()=>{
+  const email = (emailEl.value||'').trim();
+  const pass  = (passEl.value||'').trim();
+  const disp  = (nameEl.value||'').trim();
+
+  if (!email || !pass){ alert('Enter email and password.'); return; }
+
+  try{
+    if (authMode==='register'){
+      await createUserWithEmailAndPassword(auth, email, pass);
+    } else {
+      await signInWithEmailAndPassword(auth, email, pass);
+    }
+
+    // If a display name was input, save it to the profile
+    if (disp){
+      try { await updateProfile(auth.currentUser, { displayName: disp }); }
+      catch(e){ console.warn('updateProfile failed:', e); }
+    }
+
+    closeSheet();
+  }catch(e){
+    alert(e.message || 'Authentication failed.');
+  }
+});
+
+// Menu item behavior
+authBtn.addEventListener('click', async ()=>{
+  const u = auth.currentUser;
+  if (u) {
+    if (!confirm('Sign out?')) return;
+    try { await signOut(auth); } catch(e){ console.warn(e); }
+    return;
+  }
+  openSheet('signin');
+});
+
+// React to auth state
+let unsubscribeItems = null;
+onAuthStateChanged(auth, (u) => {
+  if (unsubscribeItems) { try { unsubscribeItems(); } catch(_) {} unsubscribeItems = null; }
+
+  if (!u) {
+    badge.textContent = 'Not signed in';
+    badge.classList.remove('mono');
+    authBtn.textContent = 'Sign in';
+    // Clear list
+    listEl.innerHTML = '<div class="hint">Sign in to view and manage your items.</div>';
+    return;
+  }
+
+  const name = u.displayName || u.email || u.uid;
+  badge.textContent = name;
+  badge.classList.add('mono');
+  authBtn.textContent = 'Sign out';
+
+  // Subscribe to this user's items
+  subscribe(u.uid);
+});
+
+  // ---------- UI logic
+  function toggleEditor(show){
+    editor.hidden = !show;
+    if (show) {
+      // sensible defaults
+      fType.value = 'note';
+      fTags.value = '';
+      fQ.value = '';
+      fA.value = '';
+      fNote.value = '';
+      fAns.checked = true;
+      fTarget.value = 'calendar';
+      modeSel.value = 'once';
+      switchMode();
+      // default datetime: now + 10 minutes
+      const now = new Date(Date.now() + 10*60*1000);
+      onceDT.value = toLocalInput(now);
+      const d0 = new Date();
+      rStart.value = toLocalDate(d0);
+      const d1 = new Date(Date.now() + 7*864e5);
+      rEnd.value = toLocalDate(d1);
+      rCount.value = '10';
+    }
+  }
+btnNew.addEventListener('click', ()=>{
+  setEditing(null);        // clear any existing doc id
+  isCreatingNew = true;    // tell autosave we're creating
+  lastSavedPayload = null; // so the first save isn’t deduped
+  setStatus(null);         // Idle
+  openEditorFor(null);     // open a blank editor
+});
+
+btnCancel.addEventListener('click', async ()=>{
+  // if there was a save error, or the form differs from lastSavedPayload, confirm first
+  const needAttention = (saveState === 'error') || hasPendingChanges();
+
+  if (!needAttention){
+    // safe close
+    toggleEditor(false);
+    setEditing(null);
+    lastSavedPayload = null;
+    setStatus(null);
+    return;
+  }
+
+  // Show confirmation sheet
+  openCancelConfirm();
+});
+
+  fType.addEventListener('change', ()=>{
+    const isQA = fType.value === 'qa';
+    qaWrap.style.display   = isQA ? 'grid' : 'none';
+    noteWrap.style.display = isQA ? 'none' : 'block';
+  });
+  fType.dispatchEvent(new Event('change'));
+
+  modeSel.addEventListener('change', switchMode);
+function switchMode(){
+  const m = modeSel.value;
+  const isOnce = (m === 'once');
+  // show only the relevant block
+  onceBlock.hidden   = !isOnce;
+  randomBlock.hidden =  isOnce;
+}
+modeSel.addEventListener('change', switchMode);
+
+// ---------- Firestore
+let collRef = null;
+
+function subscribe(uid){
+  if (unsubscribeItems) { try { unsubscribeItems(); } catch(_) {} unsubscribeItems = null; }
+
+  collRef = collection(db, `users/${uid}/items`);
+  const qy = query(collRef, orderBy('createdClient','desc'));
+
+  unsubscribeItems = onSnapshot(
+    qy,
+    { includeMetadataChanges: true },
+    (snap) => {
+      itemsCache = [];
+      snap.forEach(docSnap => itemsCache.push({ id: docSnap.id, ...docSnap.data() }));
+      populateTagDropdown();
+      updateListView();
+      listEl.replaceChildren(frag);
+      populateTagDropdown();
+    }
+  );
+}
+
+function openEditorFor(it){
+  // it may be null (new)
+  toggleEditor(true);
+
+  // >>> NEW: lock the mode to avoid duplicate creation
+  // If we have an item with an id, we're editing; otherwise we're creating new.
+  setEditing(it?.id ?? null);
+  isCreatingNew = !(it && it.id);
+
+  // Reset autosave status for this session
+  lastSavedPayload = null;
+  setStatus && setStatus(null);
+
+  // Type + tags
+  fType.value = it ? it.type : 'note';
+  fType.dispatchEvent(new Event('change'));
+  fTags.value = (it?.tags || []).join(', ');
+
+  // Content
+  if (it?.type === 'qa'){
+    fQ.value = it.q || it.title || '';
+    fA.value = it.a || it.body || '';
+    fTitle.value = '';                 // clear for QA
+    fNote.value  = '';
+  } else if (it){
+    fQ.value = ''; fA.value = '';
+    fTitle.value = it.title || '';     // NEW: load saved title if present
+    fNote.value  = it.note  || it.title || '';
+  } else {
+    fQ.value = ''; fA.value = '';
+    fTitle.value = '';                 // NEW
+    fNote.value  = '';
+  }
+
+  // Color
+  buildSwatches && buildSwatches();
+  const hex = (it?.color) || '#8e8e93';
+  colorInput.value = hex;
+  reflectSelected && reflectSelected(hex);
+  colorInput.oninput = ()=>{
+    const v = (colorInput.value||'').trim();
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)){
+      reflectSelected && reflectSelected(v);
+      queueAutosave && queueAutosave();
+    }
+  };
+
+  // Options
+  fAns.checked  = it ? !!it.includeAnswer : true;
+  fTarget.value = it ? (it.target || 'calendar') : 'calendar';
+
+  // Schedule
+  const s = it?.sched || null;
+  modeSel.value = (s?.mode === 'random') ? 'random' : 'once';
+  switchMode && switchMode();
+
+  if (s?.mode === 'once'){
+    const d = asDate(s.when) || new Date(Date.now()+10*60*1000);
+    onceDT.value = toLocalInput(d);
+  } else if (s?.mode === 'random'){
+    const d0 = asDate(s.start) || new Date();
+    const d1 = asDate(s.end)   || new Date(Date.now()+7*864e5);
+    rStart.value = toLocalDate(d0);
+    rEnd.value   = toLocalDate(d1);
+    rT1.value    = s.t1 || '09:00';
+    rT2.value    = s.t2 || '21:00';
+    rCount.value = String(s.count ?? 10);
+  } else {
+    const now = new Date(Date.now()+10*60*1000);
+    onceDT.value = toLocalInput(now);
+  }
+}
+
+let autosaveTimer = null;
+let lastSavedPayload = null;
+function hasPendingChanges(){
+  try{
+    const current = JSON.stringify(collectFormPayload());
+    return current !== lastSavedPayload;
+  }catch(_){
+    // If anything goes wrong reading the form, be safe and treat as dirty
+    return true;
+  }
+}
+const AUTOSAVE_DELAY_MS = 300; // responsive
+
+function collectFormPayload(){
+  const type = fType.value;
+  const tags = csvToArr(fTags.value).filter(Boolean);
+
+  let q='', a='', title='', note='';
+  if (type === 'qa'){
+    q = (fQ.value||'').trim();
+    a = (fA.value||'').trim();
+  } else {
+    title = (fTitle.value||'').trim();
+    note  = (fNote.value||'').trim();
+  }
+
+  const sched = (modeSel.value==='once')
+    ? { mode:'once', when: parseLocalInput(onceDT.value) }
+    : {
+        mode:'random',
+        start: parseLocalDate(rStart.value),
+        end:   parseLocalDate(rEnd.value),
+        t1: rT1.value, t2: rT2.value,
+        count: Number(rCount.value||'0')|0
+      };
+
+  const colorHex = (colorInput.value||'').trim();
+  const color = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(colorHex) ? colorHex : '#8e8e93';
+
+  return {
+    type, q, a, title, note,
+    includeAnswer: fAns.checked,
+    target: (fTarget && fTarget.value) || 'calendar',
+    tags, sched,
+    color
+  };
+}
+
+async function performAutosave(){
+  try{
+    // Build payload
+    const base = collectFormPayload();
+
+    // Avoid redundant writes
+    const serialized = JSON.stringify(base);
+    if (serialized === lastSavedPayload){
+      setStatus('saved');
+      return;
+    }
+
+    setStatus('saving');
+
+    // Create a draft on first change if we don’t have a doc yet
+    if (!currentEditId){
+      if (!isCreatingNew){
+        // We're editing an existing item but don't have its id — do NOT create a new one.
+        console.warn('Blocked accidental duplicate creation while editing.');
+        setStatus('error');
+        return;
+      }
+      const docRef = await addDoc(collRef, {
+        ...base,
+        draft: true,                   // hidden until there’s a title
+        created: serverTimestamp(),
+        createdClient: new Date().toISOString()
+      });
+      currentEditId = docRef.id;
+      setEditing(currentEditId);
+      isCreatingNew = false; // once created, we’re in update mode
+    }
+
+    // Decide if it’s “real” yet (needs a title)
+    const hasTitle = base.type === 'qa' ? !!base.q : (!!base.title || !!base.note);
+
+    // Update the doc with latest edits
+    await updateDoc(doc(db, collRef.path, currentEditId), {
+      ...base,
+      draft: !hasTitle,
+      updated: serverTimestamp(),
+      updatedClient: new Date().toISOString()
+    });
+
+    lastSavedPayload = serialized;
+    setStatus('saved');
+    // fade back to Idle after a moment
+    setTimeout(()=> setStatus(null), 1200);
+  }catch(e){
+    console.error(e);
+    setStatus('error', 'Error');
+  }
+}
+
+
+function queueAutosave(){
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(()=>{
+    // Use requestIdleCallback if available for smoother typing
+    const run = ()=>performAutosave();
+    if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 500 });
+    else run();
+  }, AUTOSAVE_DELAY_MS);
+}
+
+[fType, fTags, fQ, fA, fTitle, fNote, fAns, fTarget, modeSel, onceDT, rStart, rEnd, rT1, rT2, rCount]
+  .forEach(el => {
+    if (!el) return;
+    el.addEventListener('input', queueAutosave);
+    el.addEventListener('change', queueAutosave);
+  });
+
+// Normalize Firestore Timestamp | Date | string -> Date | null
+function asDate(x){
+  if (!x) return null;
+  if (x instanceof Date) return x;
+  if (typeof x.toDate === 'function') return x.toDate(); // Firestore Timestamp
+  if (typeof x === 'string' || typeof x === 'number') {
+    const d = new Date(x);
+    return isNaN(d) ? null : d;
+  }
+  return null;
+}
+
+// ---------- Schedule text helper
+function describeSchedule(s){
+  if (!s) return 'No schedule';
+
+  // Short date: mm/dd/yy
+  const fmtDate = d => {
+    if (!d) return '(unset)';
+    return d.toLocaleDateString(undefined, {
+      year: '2-digit',
+      month: 'numeric',
+      day: 'numeric'
+    });
+  };
+
+  // Short time: drop :00 if minutes are zero, 12-hour format
+  const fmtTime = t => {
+    if (!t) return '';
+    let d = (t instanceof Date) ? t : new Date(`1970-01-01T${t}`);
+    if (isNaN(d)) return t; // fallback to raw string
+    let opts = { hour: 'numeric', minute: 'numeric', hour12: true };
+    let str = d.toLocaleTimeString(undefined, opts);
+    return str.replace(':00',''); // strip minutes if ":00"
+  };
+
+  if (s.mode === 'once'){
+    const d = asDate(s.when);
+    return d ? `One-time • ${fmtDate(d)}, ${fmtTime(d)}` : 'One-time • (unset)';
+  }
+
+  if (s.mode === 'random'){
+    const start = asDate(s.start);
+    const end   = asDate(s.end);
+    const c     = Number(s.count||0)|0;
+    const t1    = s.t1 || '09:00';
+    const t2    = s.t2 || '21:00';
+    return `Random • ${c} ${c===1?'drop':'drops'} • ${fmtDate(start)}–${fmtDate(end)} • daily ${fmtTime(t1)}–${fmtTime(t2)}`;
+  }
+
+  return 'Schedule';
+}
+
+function renderItem(it){
+  const el = document.createElement('div');
+  el.dataset.id = it.id || '';
+  el.className = 'item';
+
+  const color = it.color || '#8e8e93';
+
+  // Layout mode (compact | normal | detailed)
+  const mode = (typeof LAYOUT_MODE !== 'undefined' && LAYOUT_MODE)
+                ? LAYOUT_MODE
+                : (localStorage.getItem('list-layout') || 'normal');
+
+  // Line clamp class for subtitle blocks
+  const subClampClass =
+    (mode === 'compact') ? 'clamp-1' :
+    (mode === 'normal')  ? 'clamp-2' : '';
+
+  // Title block: QA => question; Note => title or note
+  const titleBlock = (it.type === 'qa')
+    ? `<div class="item-title">${escapeHTML(it.q || '')}</div>`
+    : `<div class="item-title">${escapeHTML(it.title || it.note || '')}</div>`;
+
+  el.innerHTML = `
+    <!-- badges row -->
+    <div class="badges" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="badge">${it.type==='qa'?'Q&A':'Note'}</span>
+      ${(it.tags && it.tags.length) ? `<span class="badge">${escapeHTML((it.tags||[]).join(', '))}</span>` : ''}
+    </div>
+
+    <!-- Title row (dot + text) -->
+    <div class="tap-edit">
+      <span class="color-dot" style="background:${color}"></span>
+      <div class="text-block">
+        ${titleBlock}
+      </div>
+    </div>
+
+    <!-- Note body (show if note exists, title optional) -->
+    ${(it.type!=='qa' && (it.note||'').trim())
+      ? `<div class="hint note-sub ${subClampClass}">${escapeHTML(it.note)}</div>`
+      : ''}
+
+    <!-- QA answer (always show if present since Show/Hide was removed) -->
+    ${(it.type==='qa' && (it.a||'').trim())
+      ? `<div class="hint ${subClampClass}">Answer: ${escapeHTML(it.a)}</div>`
+      : ''}
+
+    <!-- Meta -->
+    <div class="meta" style="margin-top:6px">${describeSchedule(it.sched)}</div>
+
+    <!-- Top-right controls (inline for normal/detailed) -->
+    <div class="top-controls">
+      <!-- Share/Export (same icon as header) -->
+      <button class="card-ico" data-export aria-label="Share/Export">
+        <svg class="ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M16 6l-4-4-4 4M12 2v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 12v6a2 2 0 0 0 2 2h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <!-- Edit -->
+      <button class="card-ico" data-edit aria-label="Edit">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="none" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </button>
+
+      <!-- Delete (red style from your .trash-btn class) -->
+      <button class="trash-btn" data-del aria-label="Delete">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M3 6h18M9 6l.72-1.8A2 2 0 0 1 11.57 3h.86a2 2 0 0 1 1.85 1.2L15 6m-8 0v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Compact-only: 3-dot menu trigger + panel -->
+    <button class="kebab-btn" aria-label="More" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.8"></circle>
+        <circle cx="12" cy="12" r="1.8"></circle>
+        <circle cx="19" cy="12" r="1.8"></circle>
+      </svg>
+    </button>
+    <div class="card-menu" hidden>
+      <button class="menu-item" data-act="export">Share / Export</button>
+      <button class="menu-item" data-act="edit">Edit</button>
+      <button class="menu-item" data-act="delete" style="color:var(--red)">Delete</button>
+    </div>
+  `;
+
+  // ===== Wire up buttons (guard for buttons that aren't rendered)
+  const btnExport = el.querySelector('[data-export]');
+  const btnEdit   = el.querySelector('[data-edit]');
+  const btnDel    = el.querySelector('[data-del]');
+  const tapArea   = el.querySelector('.tap-edit');
+  // --- Compact kebab menu wiring ---
+const kebabBtn = el.querySelector('.kebab-btn');
+const cardMenu = el.querySelector('.card-menu');
+
+if (kebabBtn && cardMenu){
+  const closeMenu = ()=>{
+    if (!cardMenu.hasAttribute('hidden')){
+      cardMenu.setAttribute('hidden','');
+      kebabBtn.setAttribute('aria-expanded','false');
+    }
+  };
+
+  kebabBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const open = !cardMenu.hasAttribute('hidden');
+    if (open) closeMenu();
+    else {
+      cardMenu.removeAttribute('hidden');
+      kebabBtn.setAttribute('aria-expanded','true');
+    }
+  });
+
+  // Click actions inside menu
+  cardMenu.addEventListener('click', async (e)=>{
+    const b = e.target.closest('.menu-item'); if (!b) return;
+    const act = b.getAttribute('data-act');
+    if (act === 'export'){
+      const ics = buildICSCalendar(it);
+      downloadText(ics, safeName(summarizeTitle(it)) + '.ics');
+      closeMenu();
+    } else if (act === 'edit'){
+      // open in EDIT mode (not new)
+      isCreatingNew = false;
+      setEditing(it.id);
+      lastSavedPayload = null;
+      setStatus(null);
+      openEditorFor(it);
+      closeMenu();
+    } else if (act === 'delete'){
+      if (confirm('Delete this item?')){
+        await deleteDoc(doc(db, collRef.path, it.id));
+      }
+      closeMenu();
+    }
+  });
+
+  // Close on outside click
+  document.addEventListener('click', (evt)=>{
+    if (!el.contains(evt.target)) closeMenu();
+  });
+}
+
+// Export Calendar
+if (btnExport){
+  btnExport.addEventListener('click', ()=>{
+    const ics = buildICSCalendar(it);
+    downloadText(ics, safeName(summarizeTitle(it)) + '.ics');
+  });
+}
+
+  // Edit (tap title always works; optional Edit button if present)
+  function startEdit(){
+    // open in EDIT mode
+    isCreatingNew = false;
+    setEditing(it.id || null);
+    lastSavedPayload = null;
+    setStatus(null);
+    openEditorFor(it);
+  }
+  if (btnEdit) btnEdit.addEventListener('click', startEdit);
+  if (tapArea) tapArea.addEventListener('click', startEdit);
+
+  // Delete (this button DOES exist in your template)
+  if (btnDel){
+    btnDel.addEventListener('click', async ()=>{
+      if (!confirm('Delete this item?')) return;
+      await deleteDoc(doc(db, collRef.path, it.id));
+    });
+  }
+
+  return el;
+}
+
+// Bulk → Calendar (bind a function; do NOT call it here)
+bulkCal?.addEventListener('click', () => openBulkExportWizard('calendar'));
+
+// ===== Bulk Export Wizard =====
+const bulkState = {
+  target: 'calendar',
+  mode: 'new',          // 'new' | 'all' | 'pick'
+  includeNotes: true,
+  includeQA: true,
+  includeDrafts: false,
+  startDate: null,
+  endDate: null,
+  items: [],            // all loaded items
+  visible: [],          // filtered by prefs (for pick list)
+  selectedIds: new Set(),
+  markUploaded: true
+};
+
+function openBulkExportWizard(target='calendar'){
+  bulkState.target = target;
+  // Load items first, then show modal
+  loadAllItems().then(()=>{
+    bulkState.mode = 'new';
+    bulkState.includeNotes = true;
+    bulkState.includeQA = true;
+    bulkState.includeDrafts = false;
+    bulkState.startDate = null;
+    bulkState.endDate = null;
+    bulkState.selectedIds = new Set();
+    bulkState.markUploaded = true;
+
+    // wire UI
+    const $ = (id)=>document.getElementById(id);
+    const modal = $('bulk-modal');
+    const stepPrefs = $('bulk-step-prefs');
+    const stepPick  = $('bulk-step-pick');
+    const stepSum   = $('bulk-step-summary');
+    const btnClose  = $('bulk-cancel');
+    const btnNext   = $('bulk-next');
+    const btnBack   = $('bulk-back');
+    const btnExport = $('bulk-export');
+
+    // reset steps
+    showStep('prefs');
+
+    // initial compute (for count)
+    applyPrefsFromUI();
+
+    // listeners
+    btnClose.onclick = ()=> closeBulkModal();
+    btnBack.onclick = ()=>{
+      if (!stepPick.hidden){
+        // back to prefs
+        showStep('prefs');
+      } else if (!stepSum.hidden){
+        // if we came from pick, go back to pick, else prefs
+        if (bulkState.mode==='pick') showStep('pick'); else showStep('prefs');
+      }
+    };
+    btnNext.onclick = ()=>{
+      applyPrefsFromUI();
+
+      // If we are already on the Pick step, go to Summary next
+      if (!document.getElementById('bulk-step-pick').hidden){
+        // Optional: require at least one selection
+        if (bulkState.mode === 'pick' && bulkState.selectedIds.size === 0){
+          alert('Select at least one item to continue.');
+          return;
+        }
+        buildSummary();
+        showStep('summary');
+        return;
+      }
+
+      // First hop from Prefs:
+      if (bulkState.mode === 'pick'){
+        buildPickList();
+        showStep('pick');
+      } else {
+        buildSummary();
+        showStep('summary');
+      }
+    };
+    btnExport.onclick = finalizeBulkExport;
+
+    // quick actions
+    $('bulk-select-all').onclick = ()=>{
+      bulkState.visible.forEach(it=> bulkState.selectedIds.add(it.id));
+      updatePickCount();
+      renderPickChecks();
+    };
+    $('bulk-clear-all').onclick = ()=>{
+      bulkState.selectedIds.clear();
+      updatePickCount();
+      renderPickChecks();
+    };
+
+    // open
+    modal.hidden = false;
+  });
+}
+
+function closeBulkModal(){
+  const modal = document.getElementById('bulk-modal');
+  if (modal) modal.hidden = true;
+}
+
+// step control
+function showStep(which){
+  const stepPrefs = document.getElementById('bulk-step-prefs');
+  const stepPick  = document.getElementById('bulk-step-pick');
+  const stepSum   = document.getElementById('bulk-step-summary');
+  const btnBack   = document.getElementById('bulk-back');
+  const btnNext   = document.getElementById('bulk-next');
+  const btnExport = document.getElementById('bulk-export');
+
+  stepPrefs.hidden = stepPick.hidden = stepSum.hidden = true;
+  btnBack.hidden = btnNext.hidden = btnExport.hidden = true;
+
+  if (which==='prefs'){
+    stepPrefs.hidden = false;
+    btnNext.hidden = false;
+  } else if (which==='pick'){
+    stepPick.hidden = false;
+    btnBack.hidden = false;
+    btnNext.hidden = false;
+  } else { // summary
+    stepSum.hidden = false;
+    btnBack.hidden = false;
+    btnExport.hidden = false;
+  }
+}
+
+function applyPrefsFromUI(){
+  const mode = document.querySelector('input[name="bulk-mode"]:checked')?.value || 'new';
+  bulkState.mode = mode;
+  bulkState.includeNotes = document.getElementById('bulk-inc-notes').checked;
+  bulkState.includeQA    = document.getElementById('bulk-inc-qa').checked;
+  bulkState.includeDrafts= document.getElementById('bulk-inc-drafts').checked;
+  const sd = document.getElementById('bulk-date-start').value || null;
+  const ed = document.getElementById('bulk-date-end').value || null;
+  bulkState.startDate = sd ? new Date(sd+'T00:00:00Z') : null;
+  bulkState.endDate   = ed ? new Date(ed+'T23:59:59Z') : null;
+
+  // compute visible set for pick (also used for counts)
+  bulkState.visible = bulkState.items.filter(isItemIncludedByPrefs);
+  updatePickCount();
+}
+
+function isItemIncludedByPrefs(it){
+  // type filter
+  if (it.type==='note' && !bulkState.includeNotes) return false;
+  if (it.type==='qa'   && !bulkState.includeQA) return false;
+
+  // drafts
+  const hasTitle = it.type==='qa' ? !!(it.q) : !!(it.title||it.note);
+  if (!hasTitle && !bulkState.includeDrafts) return false;
+
+  // date range (use sched?.when if you have it; else updatedClient/createdClient)
+  const stamp = toDateForFilter(it);
+  if (bulkState.startDate && stamp && stamp < bulkState.startDate) return false;
+  if (bulkState.endDate   && stamp && stamp > bulkState.endDate) return false;
+
+  // mode=new => exclude ones already uploaded
+  if (bulkState.mode==='new' && isUploadedToCalendar(it)) return false;
+
+  return true;
+}
+
+// Decide “uploaded” based on metadata your app writes.
+// We’ll check either: it.export?.calendar?.uploaded === true OR it.export?.calendar?.last
+function isUploadedToCalendar(it){
+  const ex = it.export && it.export.calendar;
+  return !!(ex && (ex.uploaded || ex.last));
+}
+
+function toDateForFilter(it){
+  // prefer scheduled date if present
+  if (it.sched && it.sched.when){
+    const d = new Date(it.sched.when);
+    if (!isNaN(d)) return d;
+  }
+  // else updatedClient/createdClient
+  const tryFields = [it.updatedClient, it.createdClient, it.updated, it.created];
+  for (const f of tryFields){
+    if (!f) continue;
+    const d = new Date(f);
+    if (!isNaN(d)) return d;
+  }
+  return null;
+}
+
+async function loadAllItems(){
+  // Use your existing helper (from your old bulk export)
+  // fallback: simple Firestore scan
+  // const all = await collectAll(collRef);
+  const all = await collectAll(collRef);
+  // Ensure each item has id (doc.id) and sane defaults
+  bulkState.items = all.map(it => ({
+    id: it.id,
+    type: it.type || 'note',
+    title: it.title || '',
+    note: it.note || '',
+    q: it.q || '',
+    a: it.a || '',
+    tags: it.tags || [],
+    color: it.color || '#8e8e93',
+    sched: it.sched || null,
+    draft: it.draft || false,
+    export: it.export || null,
+    updatedClient: it.updatedClient || null,
+    createdClient: it.createdClient || null
+  }));
+}
+
+function buildPickList(){
+  const list = document.getElementById('bulk-list');
+  list.innerHTML = '';
+  applyPrefsFromUI(); // ensures visible is current
+
+  for (const it of bulkState.visible){
+    const row = document.createElement('label');
+    row.className = 'bulk-item';
+    row.dataset.id = it.id;
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = bulkState.selectedIds.has(it.id);
+    cb.addEventListener('change', (e)=>{
+      if (e.target.checked) bulkState.selectedIds.add(it.id);
+      else bulkState.selectedIds.delete(it.id);
+      updatePickCount();
+    });
+
+    const dot = document.createElement('span');
+    dot.className = 'color-dot';
+    dot.style.background = it.color || '#8e8e93';
+
+    const text = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'bulk-title';
+    title.textContent = compactTitle(it);
+    const meta = document.createElement('div');
+    meta.className = 'bulk-meta';
+    meta.textContent = compactMeta(it);
+    text.appendChild(title);
+    text.appendChild(meta);
+
+    row.appendChild(cb);
+    row.appendChild(dot);
+    row.appendChild(text);
+    row.addEventListener('click', (e)=>{
+      // clicking row toggles the checkbox (except when clicking the checkbox itself)
+      if (e.target.tagName !== 'INPUT'){
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      }
+    });
+
+    list.appendChild(row);
+  }
+  updatePickCount();
+  renderPickChecks();
+}
+
+function renderPickChecks(){
+  document.querySelectorAll('#bulk-list .bulk-item input[type="checkbox"]').forEach(cb=>{
+    const id = cb.closest('.bulk-item')?.dataset.id;
+    cb.checked = id ? bulkState.selectedIds.has(id) : false;
+  });
+}
+
+function updatePickCount(){
+  const el = document.getElementById('bulk-count');
+  const total = bulkState.visible.length;
+  const sel = bulkState.mode==='pick' ? bulkState.selectedIds.size : total;
+  if (el) el.textContent = `${sel} of ${total} items selected`;
+}
+
+function compactTitle(it){
+  if (it.type==='qa') return it.q || '(untitled Q&A)';
+  return it.title || it.note || '(untitled note)';
+}
+
+function compactMeta(it){
+  const parts = [];
+  if (it.tags?.length) parts.push(it.tags.join(', '));
+  if (isUploadedToCalendar(it)) parts.push('uploaded');
+  if (it.sched?.when){
+    const d = new Date(it.sched.when);
+    if (!isNaN(d)) parts.push(d.toLocaleString());
+  }
+  return parts.join(' • ');
+}
+
+function buildSummary(){
+  const el = document.getElementById('bulk-summary-text');
+  const mark = document.getElementById('bulk-mark-uploaded');
+  if (mark) bulkState.markUploaded = mark.checked;
+
+  let candidates = bulkState.items.filter(isItemIncludedByPrefs);
+  if (bulkState.mode==='pick'){
+    candidates = candidates.filter(it => bulkState.selectedIds.has(it.id));
+  }
+  const n = candidates.length;
+  el.textContent = n
+    ? `Ready to export ${n} item${n>1?'s':''} to Calendar.`
+    : `No items match your criteria.`;
+}
+// Make each export row tappable to toggle its checkbox
+(() => {
+  const list = document.getElementById('bulk-list');
+  if (!list) return;
+
+  // Make rows focusable for keyboard toggle
+  list.querySelectorAll('.bulk-item').forEach(row => { row.tabIndex = 0; });
+
+  function toggleRow(row){
+    const cb = row.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    cb.checked = !cb.checked;
+    row.classList.toggle('is-checked', cb.checked);
+  }
+
+  list.addEventListener('click', (e) => {
+    const row = e.target.closest('.bulk-item');
+    if (!row) return;
+
+    // Don't double-toggle if the user clicked the checkbox or a button/link
+    if (e.target.closest('input[type="checkbox"], button, a, [role="button"]')) return;
+
+    toggleRow(row);
+  });
+
+  // Space / Enter toggles the row
+  list.addEventListener('keydown', (e) => {
+    const row = e.target.closest('.bulk-item');
+    if (!row) return;
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      toggleRow(row);
+    }
+  });
+})();
+
+async function finalizeBulkExport(){
+  const mark = document.getElementById('bulk-mark-uploaded');
+  if (mark) bulkState.markUploaded = mark.checked;
+
+  let candidates = bulkState.items.filter(isItemIncludedByPrefs);
+  if (bulkState.mode==='pick'){
+    candidates = candidates.filter(it => bulkState.selectedIds.has(it.id));
+  }
+  if (!candidates.length){
+    alert('Nothing to export.');
+    return;
+  }
+
+  // Build ICS using your existing helpers
+  const bundle = candidates
+    .filter(it => true) // could add per-item guard here
+    .map(buildVCAL_EVENT) // you already have this
+    .join('\n');
+
+  const full = wrapVCAL(bundle); // you already have this
+  downloadText(full, "memorizer-bulk.ics");
+
+  // Mark as uploaded? (writes metadata to each doc)
+  if (bulkState.markUploaded){
+    const nowISO = new Date().toISOString();
+    for (const it of candidates){
+      try{
+        const ref = doc(db, collRef.path, it.id);
+        await updateDoc(ref, {
+          export: {
+            ...(it.export || {}),
+            calendar: {
+              uploaded: true,
+              last: nowISO
+            }
+          }
+        });
+      }catch(e){
+        console.warn('Failed to mark uploaded for', it.id, e);
+      }
+    }
+  }
+
+  closeBulkModal();
+  // Optional: toast/status
+  setStatus?.('saved', 'Exported');
+  setTimeout(()=> setStatus?.(null), 1200);
+}
+
+  async function collectAll(ref){
+    const qy = query(ref, orderBy('createdClient','desc'));
+    const snap = await getDocs(qy);
+    const out = [];
+    snap.forEach(s => out.push({ id:s.id, ...s.data() }));
+    return out;
+  }
+
+  // ---------- CSV import (columns: type, title/question, answer/note, tags)
+  btnImport.addEventListener('click', ()=>csvInput.click());
+  csvInput.addEventListener('change', async (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    // naive parse (comma-split). For commas in quotes, switch to a CSV lib.
+     const batch = writeBatch(db);
+      for (const line of lines){
+        const cells = line.split(',').map(s=>s.trim());
+        const [typeRaw, c1, c2, tagsRaw=''] = cells;
+        const type = (typeRaw||'note').toLowerCase()==='qa' ? 'qa' : 'note';
+        const tags = csvToArr(tagsRaw).filter(Boolean);
+        const q = type==='qa' ? (c1||'').trim() : '';
+        const a = type==='qa' ? (c2||'').trim() : '';
+        const note = type==='qa' ? '' : (c1||'').trim();
+        const ref = doc(collection(db, collRef.path));
+        batch.set(ref, {
+          type, q, a, note, includeAnswer: true,
+          tags,
+          sched:{mode:'once', when: new Date(Date.now()+30*60*1000)},
+          created: serverTimestamp(),
+          createdClient: new Date().toISOString()
+        });
+      }
+      await batch.commit();
+    alert('Imported.');
+    csvInput.value='';
+  });
+
+  // ---------- ICS builders
+  function buildICSCalendar(it){
+    const v = buildVCAL_EVENT(it);
+    return wrapVCAL(v);
+  }
+
+  function wrapVCAL(inner){
+    return [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Memorizer//EN",
+      "CALSCALE:GREGORIAN",
+      inner,
+      "END:VCALENDAR"
+    ].join("\r\n");
+  }
+
+  // VEVENT (Calendar)
+  function buildVCAL_EVENT(it){
+    const uid = makeUID();
+    const now = toICSDateTime(new Date());
+    const occurs = expandSchedule(it.sched);
+    if (!occurs.length){
+      // If no expansion (e.g., invalid), fallback to now+10m
+      occurs.push(new Date(Date.now()+10*60*1000));
+    }
+    // For single export, pick first occurrence
+    const dt = occurs[0];
+    const title = summarizeTitle(it);
+    const desc  = summarizeDesc(it);
+    return [
+      "BEGIN:VEVENT",
+      `UID:${uid}`,
+      `DTSTAMP:${now}`,
+      `DTSTART:${toICSDateTime(dt)}`,
+      `DTEND:${toICSDateTime(new Date(dt.getTime()+30*60*1000))}`, // 30 min default
+      `SUMMARY:${escapeICS(title)}`,
+      `DESCRIPTION:${escapeICS(desc)}`,
+      "END:VEVENT"
+    ].join("\r\n");
+  }
+
+function summarizeTitle(it){
+  return it.type === 'qa'
+    ? (it.q || 'QA')
+    : (it.title || it.note || 'Note');
+}
+
+function summarizeDesc(it){
+  // Back-compat: older docs may have "body"
+  const hasLegacyBody = typeof it.body === 'string' && it.body.trim().length > 0;
+
+  if (it.type === 'qa'){
+    const lines = ["Question: " + (it.q || '').trim()];
+    const shouldInclude = !!it.includeAnswer;
+    const ans = (it.a || '').trim();
+    if (shouldInclude && ans) lines.push("Answer: " + ans);
+    if (it.tags?.length) lines.push("Tags: " + it.tags.join(', '));
+    return lines.join("\\n");
+  } else {
+    const lines = [(it.note || '').trim() || (it.title || '').trim()];
+    if (it.tags?.length) lines.push("Tags: " + it.tags.join(', '));
+    return lines.join("\\n");
+  }
+}
+
+// ---------- Schedule expansion
+function expandSchedule(s){
+  if (!s) return [];
+  if (s.mode === 'once'){
+    const d = asDate(s.when);
+    return d ? [d] : [];
+  }
+  if (s.mode === 'random'){
+    const start = asDate(s.start);
+    const end   = asDate(s.end);
+    const count = Math.max(0, Number(s.count||0)|0);
+    if (!start || !end || end < start || !count) return [];
+    const [t1h,t1m] = (s.t1||'09:00').split(':').map(n=>+n||0);
+    const [t2h,t2m] = (s.t2||'21:00').split(':').map(n=>+n||0);
+    const out = [];
+    for (let i=0;i<count;i++){
+      const day = randDate(start,end);
+      const t   = randTime(t1h,t1m,t2h,t2m);
+      const d = new Date(day.getFullYear(), day.getMonth(), day.getDate(), t.h, t.m, Math.floor(Math.random()*50));
+      out.push(d);
+    }
+    out.sort((a,b)=>a-b);
+    return out;
+  }
+  return [];
+}
+
+  function randDate(a,b){
+    const t = a.getTime() + Math.random()*(b.getTime()-a.getTime());
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function randTime(h1,m1,h2,m2){
+    const start = h1*60+m1, end=h2*60+m2;
+    const t = start + Math.floor(Math.random()*Math.max(1,end-start+1));
+    return { h: Math.floor(t/60), m: t%60 };
+  }
+
+  // ---------- Utils
+  function toLocalInput(d){
+    const pad = (n)=>String(n).padStart(2,'0');
+    const yyyy=d.getFullYear(), mm=pad(d.getMonth()+1), dd=pad(d.getDate());
+    const hh=pad(d.getHours()), mi=pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  }
+  function toLocalDate(d){
+    const pad = (n)=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function parseLocalInput(v){ return v ? new Date(v) : null; }
+  function parseLocalDate(v){ return v ? new Date(v+"T00:00") : null; }
+
+  function toICSDateTime(d){
+    // Use "floating" local time (no Z, no TZID) so Apple applies current device timezone.
+    const pad = (n)=>String(n).padStart(2,'0');
+    const yyyy=d.getFullYear(), mm=pad(d.getMonth()+1), dd=pad(d.getDate());
+    const hh=pad(d.getHours()), mi=pad(d.getMinutes()), ss=pad(d.getSeconds());
+    return `${yyyy}${mm}${dd}T${hh}${mi}${ss}`;
+  }
+
+  function escapeHTML(s){ return (s||'').replace(/[&<>"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[m]); }
+  function escapeICS(s){
+    return (s||'')
+      .replace(/\\n/g, '\\n')
+      .replace(/[\r\n]+/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;');
+  }
+  function csvToArr(s){ return (s||'').split(',').map(x=>x.trim()); }
+  function makeUID(){ return 'uid-'+Math.random().toString(36).slice(2)+'-'+Date.now(); }
+  function safeName(s){ return (s||'item').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'item'; }
+
+  function downloadText(text, filename){
+    const blob = new Blob([text], {type:'text/calendar;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }
+</script>
+</body>
+</html>
